@@ -1,0 +1,12 @@
+[package]
+name = "thermorust"
+version = "0.1.0"
+edition = "2021"
+
+
+# needed by flamegraph (profiling)
+[profile.release]
+debug = true
+
+[dependencies]
+nannou = "0.18.1"
