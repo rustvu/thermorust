@@ -40,16 +40,16 @@ fn update(_app: &App, model: &mut Model, _update: Update) {
 
     for x in 1..SIZE_X - 1 {
         for y in 1..SIZE_Y - 1 {
-            if source[x][y] > 0.0 {
-                new_grid[x][y] = source[x][y];
+            new_grid[x][y] = if source[x][y] > 0.0 {
+                source[x][y]
             } else {
                 let laplacian = -4.0 * grid[x][y]
                     + grid[x - 1][y]
                     + grid[x + 1][y]
                     + grid[x][y - 1]
                     + grid[x][y + 1];
-                new_grid[x][y] = ALPHA * laplacian + model.grid[x][y];
-            }
+                ALPHA * laplacian + model.grid[x][y]
+            };
         }
     }
 
@@ -76,10 +76,10 @@ fn view(app: &App, model: &Model, frame: Frame) {
             );
         }
     }
-    
+
     draw.to_frame(app, &frame).unwrap();
 
-    println!("FPS: {}", 1000 / app.duration.since_prev_update.as_millis());
+    println!("FPS: {}", app.fps());
 }
 
 fn main() {
