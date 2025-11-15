@@ -16,39 +16,37 @@ struct Model {
 }
 
 fn model(_app: &App) -> Model {
-    let mut model = Model {
-        source: Box::new([[0.0; SIZE_Y]; SIZE_X]),
-        grid: Box::new([[0.0; SIZE_Y]; SIZE_X]),
-    };
-
     let source_img = image::open("rustvu.png").unwrap().to_luma16();
     let x_offset = (SIZE_X - source_img.width() as usize) / 2;
     let y_offset = (SIZE_Y - source_img.height() as usize) / 2;
-    source_img.enumerate_pixels().for_each(|(x, y, pixel)| {
-        let x = x as usize;
-        let y = (source_img.height() - y) as usize;
-        model.source[x + x_offset][y + y_offset] = pixel[0] as f64 / u16::MAX as f64;
-    });
 
-    model
+    let mut source = Box::new([[0.0; SIZE_Y]; SIZE_X]);
+    for (x, y, pixel) in source_img.enumerate_pixels() {
+        let img_x = x as usize + x_offset;
+        let img_y = (source_img.height() - y - 1) as usize + y_offset;
+        source[img_x][img_y] = pixel[0] as f64 / u16::MAX as f64;
+    }
+
+    Model {
+        source,
+        grid: Box::new([[0.0; SIZE_Y]; SIZE_X]),
+    }
 }
 
 fn update(_app: &App, model: &mut Model, _update: Update) {
-    let source = &model.source;
-    let grid = &model.grid;
     let mut new_grid = Box::new([[0.0; SIZE_Y]; SIZE_X]);
 
     for x in 1..SIZE_X - 1 {
         for y in 1..SIZE_Y - 1 {
-            new_grid[x][y] = if source[x][y] > 0.0 {
-                source[x][y]
+            new_grid[x][y] = if model.source[x][y] > 0.0 {
+                model.source[x][y]
             } else {
-                let laplacian = -4.0 * grid[x][y]
-                    + grid[x - 1][y]
-                    + grid[x + 1][y]
-                    + grid[x][y - 1]
-                    + grid[x][y + 1];
-                ALPHA * laplacian + model.grid[x][y]
+                let laplacian = model.grid[x - 1][y]
+                    + model.grid[x + 1][y]
+                    + model.grid[x][y - 1]
+                    + model.grid[x][y + 1]
+                    - 4.0 * model.grid[x][y];
+                model.grid[x][y] + ALPHA * laplacian
             };
         }
     }
@@ -57,29 +55,26 @@ fn update(_app: &App, model: &mut Model, _update: Update) {
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
-    let boundary = app.window_rect();
-
-    let draw = app
-        .draw()
-        .xy(boundary.bottom_left())
-        .scale_x(boundary.w() / SIZE_X as f32)
-        .scale_y(boundary.h() / SIZE_Y as f32);
-
+    let rect = app.window_rect();
+    let draw = app.draw();
     draw.background().color(BLACK);
 
-    for x in 0..SIZE_X {
-        for y in 0..SIZE_Y {
-            draw.rect().x_y(x as f32, y as f32).w_h(1.0, 1.0).rgb(
-                model.grid[x][y] as f32,
-                0.0,
-                0.0,
-            );
+    let sx = rect.w() / SIZE_X as f32;
+    let sy = rect.h() / SIZE_Y as f32;
+
+    for (x, col) in model.grid.iter().enumerate() {
+        for (y, &v) in col.iter().enumerate() {
+            draw.rect()
+                .x_y(
+                    rect.left() + sx * (x as f32 + 0.5),
+                    rect.bottom() + sy * (y as f32 + 0.5),
+                )
+                .w_h(sx, sy)
+                .rgb(v as f32, 0.0, 0.0);
         }
     }
 
     draw.to_frame(app, &frame).unwrap();
-
-    println!("FPS: {}", app.fps());
 }
 
 fn main() {
